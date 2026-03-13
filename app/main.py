@@ -1,32 +1,29 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.concurrency import asynccontextmanager
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse  # 1. Import thêm cái này
+from fastapi.responses import JSONResponse
+
 from app.core.database import close_db, init_db
 from app.routers import auth, users, suKien, diemDanh, ketQuaDiemDanh, zaloapi
-from starlette import status
-# Import hàm bạn vừa viết
 from app.tasks.session_updater import auto_update_session_status
-from fastapi.middleware.cors import CORSMiddleware
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Khởi tạo kết nối DB trước
     await init_db()
     print("Database initialized.")
-    
-    # 2. Sau khi DB sẵn sàng mới chạy Background Task
+
     task = asyncio.create_task(auto_update_session_status())
-    
+
     yield
-    
-    # 3. Dọn dẹp khi tắt server
+
     task.cancel()
     await close_db()
     print("Database connection closed.")
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -38,22 +35,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
-    
     first_error_msg = errors[0].get("msg", "Dữ liệu đầu vào không hợp lệ")
-    
     clean_msg = first_error_msg.replace("Value error, ", "")
 
     return JSONResponse(
         status_code=422,
-        content={
-            "message": clean_msg, 
-            "detail": errors
-        },
+        content={"message": clean_msg, "detail": errors},
     )
-    
+
+
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(suKien.router)
@@ -64,7 +58,4 @@ app.include_router(zaloapi.router)
 
 @app.get("/")
 def root():
-    return {
-        "status": "OK",
-        "message": "FastAPI is running"
-    }
+    return {"status": "OK", "message": "FastAPI is running"}
