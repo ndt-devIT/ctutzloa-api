@@ -10,6 +10,7 @@ from app.routers import auth, users, suKien, diemDanh, ketQuaDiemDanh, zaloapi
 from starlette import status
 # Import hàm bạn vừa viết
 from app.tasks.session_updater import auto_update_session_status
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,21 +30,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# 2. Cấu hình CORS
-origins = [
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:2999",
-    "http://127.0.0.1:2999"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
