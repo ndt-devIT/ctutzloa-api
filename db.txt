@@ -1,0 +1,316 @@
+from beanie import Document, PydanticObjectId
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
+
+# ==========================================
+# GROUP 1: USER MANAGEMENT & SECURITY
+# ==========================================
+
+class NguoiDung(Document):
+    # Định danh & Vai trò
+    zaloUserId: Optional[str] = None
+    vaiTro: str                     # sinhVien | giangVien | admin
+    hoTen: str
+    email: Optional[str] = None
+    soDienThoai: Optional[str] = None
+
+    # Admin Auth
+    tenDangNhap: Optional[str] = None
+    matKhauHash: Optional[str] = None
+
+    # Thông tin Sinh viên
+    maSinhVien: Optional[str] = None
+    lop: Optional[str] = None
+    khoa: Optional[str] = None
+    nganh: Optional[str] = None
+    namNhapHoc: Optional[int] = None
+
+    # Thông tin Giảng viên
+    maGiangVien: Optional[str] = None
+    hocVi: Optional[str] = None
+
+    # Meta
+    trangThai: str = "hoatDong"     # hoatDong | khoa
+    ngayTao: datetime = datetime.utcnow()
+    lanDangNhapCuoi: Optional[datetime] = None
+
+    class Settings:
+        name = "nguoiDung"
+        use_state_management = True
+
+class SinhTracHoc(Document):
+    nguoiDungId: PydanticObjectId
+    daDangKyKhuonMat: bool = False
+    daDangKyVanTay: bool = False
+    vectorKhuonMat: Optional[List[float]] = None # AI Embedding
+    doTinCay: Optional[float] = None
+    ngayCapNhat: datetime = datetime.utcnow()
+
+    class Settings:
+        name = "sinhTracHoc"
+
+class ThietBiTinCay(Document):
+    nguoiDungId: PydanticObjectId
+    deviceId: str
+    loaiThietBi: str
+    lanXacThucCuoi: datetime
+    trangThai: str = "hoatDong"
+
+    class Settings:
+        name = "thietBiTinCay"
+
+# ==========================================
+# GROUP 2: EVENT & ACADEMIC STRUCTURE
+# ==========================================
+
+class SuKien(Document):
+    loaiSuKien: str                 # lopHoc | hoiThao | hoatDong
+    maSuKien: Optional[str] = None
+    tenSuKien: str
+    moTa: Optional[str] = None
+    donViToChuc: Optional[str] = None
+    nguoiPhuTrachId: PydanticObjectId 
+    thoiGianBatDau: datetime
+    thoiGianKetThuc: datetime
+    diaDiem: Optional[str] = None
+    trangThai: str = "hoatDong"
+
+    class Settings:
+        name = "suKien"
+
+class ChiTietSuKien(Document):
+    suKienId: PydanticObjectId
+    hocKy: Optional[str] = None    
+    namHoc: Optional[str] = None    
+    danhSachSinhVienId: List[PydanticObjectId] = [] 
+    trangThai: str = "hoatDong"
+
+    class Settings:
+        name = "chiTietSuKien"   
+
+class BuoiSuKien(Document):
+    suKienId: PydanticObjectId
+    thoiGianBatDau: datetime
+    thoiGianKetThuc: datetime
+    phongHoc: Optional[str] = None
+    ghiChu: Optional[str] = None
+    trangThai: str = "hoatDong"
+
+    class Settings:
+        name = "buoiSuKien"
+
+# ==========================================
+# GROUP 3: ATTENDANCE CORE LOGIC
+# ==========================================
+
+class PhienDiemDanh(Document):
+    buoiSuKienId: PydanticObjectId
+    thoiGianMo: datetime
+    thoiGianDong: datetime
+    
+    # Rules
+    batBuocKhuonMat: bool = False
+    batBuocVanTay: bool = False
+    batBuocGps: bool = False
+    banKinhGps: int = 0
+    
+    trangThai: str = "dangMo"       # dangMo | daDong | huy
+
+    class Settings:
+        name = "phienDiemDanh"
+
+# Sub-models for Result
+class XacThuc(BaseModel):
+    khuonMat: bool
+    vanTay: bool
+    gps: bool
+
+class ViTriGps(BaseModel):
+    kinhDo: float
+    viDo: float
+
+class KetQuaDiemDanh(Document):
+    phienDiemDanhId: PydanticObjectId
+    nguoiDungId: PydanticObjectId
+    thoiGianDiemDanh: datetime
+
+    trangThai: str                  # coMat | tre | vang
+    xacThuc: XacThuc
+    viTriGps: Optional[ViTriGps] = None
+
+    deviceId: Optional[str] = None
+    doTinCayTong: Optional[float] = None # AI Confidence Score
+    ghiChu: Optional[str] = None
+
+    class Settings:
+        name = "ketQuaDiemDanh"
+
+class KhieuNaiDiemDanh(Document):
+    ketQuaDiemDanhId: PydanticObjectId
+    nguoiDungId: PydanticObjectId
+    noiDung: str
+    minhChung: Optional[str] = None
+    trangThai: str = "choXuLy"      # choXuLy | chapNhan | tuChoi
+    nguoiXuLyId: Optional[PydanticObjectId] = None
+    thoiGianGui: datetime = datetime.utcnow()
+    thoiGianXuLy: Optional[datetime] = None
+
+    class Settings:
+        name = "khieuNaiDiemDanh"
+
+# ==========================================
+# GROUP 4: SYSTEM UTILITIES
+# ==========================================
+
+class AuditLog(Document):
+    nguoiDungId: Optional[PydanticObjectId] = None
+    hanhDong: str                   # CREATE | UPDATE | DELETE | LOGIN
+    doiTuong: str                   # Table name
+    noiDungCu: Optional[str] = None # JSON string
+    noiDungMoi: Optional[str] = None
+    thoiGian: datetime = datetime.utcnow()
+    ip: Optional[str] = None
+
+    class Settings:
+        name = "auditLog"
+
+class ThongBao(Document):
+    nguoiDungId: PydanticObjectId
+    tieuDe: str
+    noiDung: str
+    loaiThongBao: str
+    daDoc: bool = False
+    thoiGianGui: datetime = datetime.utcnow()
+
+    class Settings:
+        name = "thongBao"
+
+2. DATA DICTIONARY & LOGIC DESCRIPTION
+A. Người Dùng (NguoiDung)
+
+Vai trò (vaiTro): Phân quyền hệ thống (sinhVien, giangVien, admin).
+
+Liên kết Zalo (zaloUserId): Định danh người dùng qua Zalo Mini App.
+
+Trạng thái (trangThai): hoatDong hoặc khoa (cấm đăng nhập).
+
+Thông tin Admin: Sử dụng tenDangNhap/matKhauHash để đăng nhập Web Admin.
+
+Thông tin SV/GV: Các trường maSinhVien, lop, maGiangVien chỉ có dữ liệu tương ứng với vai trò.
+
+B. Sinh Trắc Học & Bảo Mật (SinhTracHoc, ThietBiTinCay)
+
+Vector Khuôn mặt (vectorKhuonMat): Lưu mảng embedding (float list) để so sánh AI, không lưu ảnh gốc trực tiếp để bảo mật.
+
+Thiết bị tin cậy (deviceId): Hệ thống ghi lại ID thiết bị. Một tài khoản chỉ được phép điểm danh trên các thiết bị đã đăng ký để chống gian lận.
+
+C. Cấu Trúc Đào Tạo (SuKien, LopHocPhan, BuoiSuKien)
+
+Sự kiện (SuKien): Đơn vị cha (Môn học, Hội thảo).
+
+Lớp học phần (LopHocPhan): Cụ thể hóa Sự kiện theo Học kỳ/Năm học. Chứa danh sách SV (danhSachSinhVienId) dưới dạng Array ID.
+
+Buổi sự kiện (BuoiSuKien): Thời gian thực tế diễn ra (Ví dụ: Buổi học sáng thứ 2).
+
+D. Quy Trình Điểm Danh (PhienDiemDanh, KetQuaDiemDanh)
+
+Phiên điểm danh (PhienDiemDanh): Giảng viên tạo "cửa sổ" thời gian (thoiGianMo - thoiGianDong) trong một buổi học.
+
+Rules: Có thể bật/tắt yêu cầu bắt buộc về Khuôn mặt, Vân tay, GPS và bán kính cho phép.
+
+Kết quả (KetQuaDiemDanh):
+
+trangThai: coMat (đúng giờ), tre (quá giờ nhưng phiên vẫn mở), vang.
+
+xacThuc: Object boolean xác nhận sinh viên đã dùng phương thức nào.
+
+doTinCayTong: Điểm số AI chấm (0.0 - 1.0).
+
+E. Hậu Kiểm (KhieuNaiDiemDanh, AuditLog)
+
+Khiếu nại: Sinh viên gửi yêu cầu nếu hệ thống ghi nhận sai (choXuLy -> chapNhan/tuChoi).
+
+AuditLog: Ghi vết toàn bộ thao tác sửa/xóa dữ liệu quan trọng để truy cứu trách nhiệm.
+
+3. KEY RELATIONSHIPS (ERD LOGIC)
+NguoiDung (1) - (1) SinhTracHoc: Mỗi người 1 bộ dữ liệu sinh trắc.
+
+SuKien (1) - (N) LopHocPhan: Một môn học có nhiều lớp học phần qua các năm.
+
+LopHocPhan (N) - (N) NguoiDung: Một lớp có nhiều SV, SV học nhiều lớp (Liên kết qua mảng danhSachSinhVienId).
+
+BuoiSuKien (1) - (N) PhienDiemDanh: Một buổi học có thể mở nhiều phiên điểm danh.
+
+PhienDiemDanh (1) - (N) KetQuaDiemDanh: Một phiên chứa kết quả của nhiều SV.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1. Nhóm Quản lý Người dùng & Bảo mật (User Management & Security)
+Nhóm này đóng vai trò là lõi định danh, phân quyền và đảm bảo tính toàn vẹn, chống gian lận cho hệ thống.
+
+NguoiDung (Người dùng):
+
+Chức năng: Lưu trữ thông tin cá nhân cơ bản và phân quyền (vaiTro).
+
+Điểm nhấn: Hỗ trợ liên kết Zalo (zaloUserId) để đăng nhập nhanh qua Zalo Mini App, đồng thời vẫn chứa các trường linh hoạt cho từng vai trò (mã số, học vị, thông tin admin).
+
+SinhTracHoc (Dữ liệu Sinh trắc):
+
+Chức năng: Quản lý dữ liệu sinh trắc học để phục vụ AI nhận diện.
+
+Điểm nhấn: Chỉ lưu vectorKhuonMat (chuỗi số liệu embedding) thay vì ảnh gốc. Điều này vừa giúp tối ưu tốc độ so sánh của AI vừa đảm bảo tính bảo mật và quyền riêng tư tối đa.
+
+ThietBiTinCay (Thiết bị Tin cậy):
+
+Chức năng: Quản lý danh sách các thiết bị di động được phép dùng để điểm danh.
+
+Điểm nhấn: Đây là lớp bảo mật thứ hai. Kể cả khi có dữ liệu khuôn mặt hợp lệ, nếu người dùng sử dụng một thiết bị lạ (deviceId không khớp), hệ thống vẫn có thể chặn hành vi "điểm danh hộ".
+
+2. Nhóm Cấu trúc Sự kiện & Lịch trình (Event Structure)
+Nhóm này thiết lập không gian, thời gian và cấu trúc tổ chức của các hoạt động cần điểm danh.
+
+SuKien (Sự kiện gốc):
+
+Chức năng: Định nghĩa thực thể tổng quát nhất (Ví dụ: Môn "Lập trình Python", hoặc "Chuỗi Hội thảo Chuyển đổi số").
+
+ChiTietSuKien (Chi tiết Sự kiện - Bản nâng cấp của Lớp học phần):
+
+Chức năng: Cụ thể hóa SuKien theo từng đợt tổ chức (Ví dụ: Tổ chức vào Học kỳ 1/2026, hoặc Khóa học tháng 10).
+
+Điểm nhấn: Quản lý danh sách người tham gia thông qua mảng ID (danhSachSinhVienId / hoặc có thể đổi thành danhSachNguoiThamGiaId).
+
+BuoiSuKien (Buổi sự kiện):
+
+Chức năng: Đơn vị thời gian thực tế diễn ra hoạt động (Ví dụ: Sáng thứ Hai, ngày 22/02 tại phòng A101). Một ChiTietSuKien sẽ bao gồm nhiều BuoiSuKien.
+
+3. Nhóm Cốt lõi Điểm danh (Attendance Core Logic)
+Đây là trái tim của hệ thống, xử lý logic đóng/mở điểm danh và lưu trữ minh chứng.
+
+PhienDiemDanh (Phiên điểm danh):
+
+Chức năng: Cửa sổ thời gian do quản trị viên/giảng viên mở ra (Ví dụ: Mở điểm danh từ 7h00 đến 7h15).
+
+Điểm nhấn: Cực kỳ linh hoạt với hệ thống Rules. Có thể tùy chỉnh bắt buộc dùng Khuôn mặt, Vân tay, hay check-in GPS (kèm bán kính cho phép) tùy vào tính chất của từng phiên.
+
+KetQuaDiemDanh (Kết quả điểm danh):
+
+Chức năng: Ghi nhận lại kết quả thao tác của từng cá nhân (Có mặt/Vắng/Trễ).
+
+Điểm nhấn: Các sub-models (XacThuc, ViTriGps) được nhúng trực tiếp giúp lưu trữ minh chứng rất chi tiết (tọa độ, thiết bị, điểm tin cậy AI doTinCayTong). Cấu trúc này tối ưu tốc độ ghi dữ liệu khi có hàng trăm người điểm danh cùng lúc.
+
+KhieuNaiDiemDanh (Khiếu nại):
+
+Chức năng: Cung cấp quy trình (workflow) để người dùng báo cáo lỗi nếu hệ thống nhận diện sai hoặc mạng chập chờn, giúp admin xem xét và phê duyệt lại kết quả.
+
+4. Nhóm Tiện ích Hệ thống (System Utilities)
+Nhóm này chạy ngầm để đảm bảo hệ thống vận hành trơn tru và minh bạch.
+
+AuditLog (Nhật ký Hệ thống):
+
+Chức năng: Ghi vết mọi thao tác thay đổi dữ liệu (Thêm, Sửa, Xóa).
+
+Điểm nhấn: Việc lưu noiDungCu và noiDungMoi (dưới dạng JSON) giúp quản trị viên dễ dàng truy cứu trách nhiệm nếu có ai đó cố tình sửa đổi kết quả điểm danh sai quy định.
+
+ThongBao (Thông báo):
+
+Chức năng: Lưu trữ thông báo gửi đến người dùng (nhắc lịch sự kiện, kết quả xử lý khiếu nại, cảnh báo đăng nhập thiết bị lạ).
